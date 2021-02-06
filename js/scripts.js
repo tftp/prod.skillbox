@@ -112,6 +112,10 @@ if (shopList) {
 
     if (prod.some(pathItem => pathItem.classList && pathItem.classList.contains('shop__item'))) {
 
+      let productId = evt.target.dataset.productId;
+      const orderProductId = document.querySelector('.order-product-id');
+      orderProductId.value = productId;
+
       const shopOrder = document.querySelector('.shop-page__order');
 
       toggleHidden(document.querySelector('.intro'), document.querySelector('.shop'), shopOrder);
@@ -154,30 +158,54 @@ if (shopList) {
 
           evt.preventDefault();
 
-          toggleHidden(shopOrder, popupEnd);
+          const form = new FormData(document.querySelector('.custom-form'));
+          const orderError = document.querySelector('.order-error');
+          let url = '/include/order_product.php';
+          let errorsOrder = '';
+          let successOrder = false;
 
-          popupEnd.classList.add('fade');
-          setTimeout(() => popupEnd.classList.remove('fade'), 1000);
+          sendRequest(url, form).then((result) => {
+            if('success' in result) {
+              successOrder = result['success'];
+              errorsOrder = result['success'] ? '' : 'Не удалось создать заказ';
+            }
+            if('errors' in result) {
+              errorsOrder = result['errors'].join();
+            }
+            if(errorsOrder.length) {
+              orderError.textContent = errorsOrder;
+            }
 
-          window.scroll(0, 0);
+            if(successOrder) {
+              toggleHidden(shopOrder, popupEnd);
 
-          const buttonEnd = popupEnd.querySelector('.button');
+              popupEnd.classList.add('fade');
+              setTimeout(() => popupEnd.classList.remove('fade'), 1000);
 
-          buttonEnd.addEventListener('click', () => {
+              window.scroll(0, 0);
 
+              const buttonEnd = popupEnd.querySelector('.button');
 
-            popupEnd.classList.add('fade-reverse');
+              buttonEnd.addEventListener('click', () => {
 
-            setTimeout(() => {
+                location.reload();
 
-              popupEnd.classList.remove('fade-reverse');
+                // popupEnd.classList.add('fade-reverse');
+                //
+                // setTimeout(() => {
+                //
+                //   popupEnd.classList.remove('fade-reverse');
+                //
+                //   toggleHidden(popupEnd, document.querySelector('.intro'), document.querySelector('.shop'));
+                //
+                // }, 1000);
 
-              toggleHidden(popupEnd, document.querySelector('.intro'), document.querySelector('.shop'));
-
-            }, 1000);
-
+              });
+            } else {
+              window.scroll(0, 0);
+              evt.preventDefault();
+            }
           });
-
         } else {
           window.scroll(0, 0);
           evt.preventDefault();
@@ -212,20 +240,25 @@ if (pageOrderList) {
     if (evt.target.classList && evt.target.classList.contains('order-item__btn')) {
 
       const status = evt.target.previousElementSibling;
+      let orderId = status.dataset.orderId;
+      let orderStatus = status.dataset.orderStatus;
+      let url = '/include/order_status.php';
+      let param = new URLSearchParams({"id": orderId, "status": orderStatus ^ 1});
 
-      if (status.classList && status.classList.contains('order-item__info--no')) {
-        status.textContent = 'Выполнено';
-      } else {
-        status.textContent = 'Не выполнено';
-      }
+      sendRequest(url, param).then((result) => {
+        if(result) {
+          if (status.classList && status.classList.contains('order-item__info--no')) {
+            status.textContent = 'Выполнено';
+          } else {
+            status.textContent = 'Не выполнено';
+          }
 
-      status.classList.toggle('order-item__info--no');
-      status.classList.toggle('order-item__info--yes');
-
+          status.classList.toggle('order-item__info--no');
+          status.classList.toggle('order-item__info--yes');
+        }
+      });
     }
-
   });
-
 }
 
 const checkList = (list, btn) => {
@@ -249,6 +282,14 @@ if (addList) {
   const addInput = addList.querySelector('#product-photo');
 
   checkList(addList, addButton);
+
+  const templateImg = addList.querySelector('.add-list__item--active');
+  if(templateImg) {
+    templateImg.addEventListener('click', evt => {
+      templateImg.remove();
+      checkList(addList, addButton);
+    });
+  }
 
   addInput.addEventListener('change', evt => {
 
@@ -280,14 +321,12 @@ if (addList) {
   const popupEnd = document.querySelector('.page-add__popup-end');
 
   button.addEventListener('click', (evt) => {
-
-    evt.preventDefault();
-
-    form.hidden = true;
-    popupEnd.hidden = false;
-
+  //   evt.preventDefault();
+  //
+  //   form.hidden = true;
+  //   popupEnd.hidden = false;
+  //
   })
-
 }
 
 const productsList = document.querySelector('.page-products__list');
@@ -298,35 +337,73 @@ if (productsList) {
     const target = evt.target;
 
     if (target.classList && target.classList.contains('product-item__delete')) {
-
-      productsList.removeChild(target.parentElement);
-
+      let param = new URLSearchParams({"id": target.dataset.productId});
+      let url = '/include/delete_product.php';
+      sendRequest(url, param).then((result) => {
+        if(result['success']) {
+          productsList.removeChild(target.parentElement);
+        }
+      });
     }
-
   });
+}
 
+async function sendRequest(url, data) {
+  let response = await fetch(url, {
+    method: 'POST',
+    body: data,
+  });
+  let result = await response.json();
+  return result;
 }
 
 // jquery range maxmin
 if (document.querySelector('.shop-page')) {
-
   $('.range__line').slider({
-    min: 350,
-    max: 32000,
-    values: [350, 32000],
+    min: $('.min-price').data('minPriceProducts'),
+    max: $('.max-price').data('maxPriceProducts'),
+    values: [$('.min-price').data('minPrice'), $('.max-price').data('maxPrice')],
     range: true,
     stop: function(event, ui) {
 
       $('.min-price').text($('.range__line').slider('values', 0) + ' руб.');
       $('.max-price').text($('.range__line').slider('values', 1) + ' руб.');
+      $('#input-min-price').val($('.range__line').slider('values', 0));
+      $('#input-max-price').val($('.range__line').slider('values', 1));
 
     },
     slide: function(event, ui) {
 
       $('.min-price').text($('.range__line').slider('values', 0) + ' руб.');
       $('.max-price').text($('.range__line').slider('values', 1) + ' руб.');
+      $('#input-min-price').val($('.range__line').slider('values', 0));
+      $('#input-max-price').val($('.range__line').slider('values', 1));
 
     }
   });
 
+}
+
+const orderOn = document.getElementsByName('order-on')[0];
+const orderHow = document.getElementsByName('order-how')[0];
+const orderSubmit = document.querySelector('#sorting-submit');
+
+if(orderOn) {
+  orderOn.addEventListener('change', (evt) => {
+    if('asc desc'.includes(orderHow.value)) {
+      const request = `/?order[object]=${orderOn.value}&order[direction]=${orderHow.value}`;
+      orderSubmit.href = request;
+      orderSubmit.click();
+    }
+  })
+}
+
+if(orderHow) {
+  orderHow.addEventListener('change', (evt) => {
+    if('price name'.includes(orderOn.value)) {
+      const request = `/?order[object]=${orderOn.value}&order[direction]=${orderHow.value}`;
+      orderSubmit.href = request;
+      orderSubmit.click();
+    }
+  })
 }

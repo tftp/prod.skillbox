@@ -7,6 +7,7 @@ function connect() {
 
     if (null === $connection) {
         $connection = mysqli_connect($host, $user_db, $password_db, $dbname) or die('connection Error');
+        $connection->set_charset("utf8");
     }
     return $connection;
 }

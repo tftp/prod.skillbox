@@ -19,6 +19,6 @@ $fitDelivery = 280;         // сумма доставки с примеркой
 
 // Конфигурация базы данных
 $host = 'localhost';
-$user_db = 'root';
-$password_db = 'qwe1rty2';
-$dbname = 'shop';
+$user_db = 'student';
+$password_db = 'student';
+$dbname = 'prod';
